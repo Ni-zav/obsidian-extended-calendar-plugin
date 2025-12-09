@@ -92,19 +92,25 @@
       monthSpan.innerText = displayedMonth.format("MMM");
       monthSpan.className = "calendar-title-month";
       monthSpan.style.cursor = "pointer";
-      monthSpan.onclick = (e) => {
+      monthSpan.style.pointerEvents = "auto";
+      monthSpan.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         tryToCreateMonthlyNote(displayedMonth, false, $settings);
-      };
+      }, true);
 
       const yearSpan = document.createElement("span");
       yearSpan.innerText = displayedMonth.format("YYYY");
       yearSpan.className = "calendar-title-year";
       yearSpan.style.cursor = "pointer";
-      yearSpan.onclick = (e) => {
+      yearSpan.style.pointerEvents = "auto";
+      yearSpan.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         tryToCreateYearlyNote(displayedMonth, false, $settings);
-      };
+      }, true);
 
       parent.appendChild(monthSpan);
       parent.appendChild(yearSpan);
