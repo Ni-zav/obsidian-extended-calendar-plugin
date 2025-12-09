@@ -12,7 +12,7 @@ export default {
     file: "dist/main.js",
     exports: "default",
   },
-  external: ["obsidian", "fs", "os", "path"],
+  external: ["obsidian"],
   plugins: [
     svelte({
       emitCss: false,

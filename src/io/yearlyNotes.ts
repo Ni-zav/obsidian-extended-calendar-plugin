@@ -1,12 +1,27 @@
 import type { Moment } from "moment";
-import type { TFile } from "obsidian";
-import {
-  createYearlyNote,
-  getYearlyNoteSettings,
-} from "obsidian-daily-notes-interface";
+import { TFile, normalizePath } from "obsidian";
 
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";
+
+// Fallback implementations
+function getYearlyNoteSettingsFallback() {
+  return { format: "YYYY", folder: "", template: "" };
+}
+
+async function createYearlyNoteFallback(date: Moment): Promise<TFile> {
+  const { vault } = window.app;
+  const { format, folder } = getYearlyNoteSettingsFallback();
+  const filename = date.format(format);
+  const path = normalizePath(`${folder}/${filename}.md`);
+
+  const existingFile = vault.getAbstractFileByPath(path);
+  if (existingFile && existingFile instanceof TFile) {
+    return existingFile;
+  }
+
+  return await vault.create(path, "");
+}
 
 /**
  * Create a Yearly Note for a given date.
@@ -18,11 +33,11 @@ export async function tryToCreateYearlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace } = window.app;
-  const { format } = getYearlyNoteSettings();
+  const { format } = getYearlyNoteSettingsFallback();
   const filename = date.format(format);
 
   const createFile = async () => {
-    const note = await createYearlyNote(date);
+    const note = await createYearlyNoteFallback(date);
     const leaf = inNewSplit
       ? workspace.splitActiveLeaf()
       : workspace.getUnpinnedLeaf();

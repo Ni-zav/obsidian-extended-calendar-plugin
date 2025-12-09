@@ -15,6 +15,7 @@
   import { tryToCreateYearlyNote } from "src/io/yearlyNotes";
 
   let today: Moment;
+  let lastUpdatedMonth: string = ""; // Track the last updated month to prevent duplicate updates
 
   $: today = getToday($settings);
 
@@ -26,6 +27,17 @@
   export let onClickWeek: (date: Moment, isMetaPressed: boolean) => boolean;
   export let onContextMenuDay: (date: Moment, event: MouseEvent) => boolean;
   export let onContextMenuWeek: (date: Moment, event: MouseEvent) => boolean;
+
+  // Wrap handlers with logging
+  const wrappedOnClickDay = (date: Moment, isMetaPressed: boolean) => {
+    console.log("📅 EXTENDED CALENDAR: Clicked day", date.format("YYYY-MM-DD"), { isMetaPressed });
+    return onClickDay?.(date, isMetaPressed);
+  };
+
+  const wrappedOnClickWeek = (date: Moment, isMetaPressed: boolean) => {
+    console.log("📅 EXTENDED CALENDAR: Clicked week", date.format("YYYY-[W]ww"), { isMetaPressed });
+    return onClickWeek?.(date, isMetaPressed);
+  };
 
   export function tick() {
     today = window.moment();
@@ -52,36 +64,62 @@
 
   let container: HTMLElement;
 
+  function handleTitleClick(e: Event) {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains("calendar-title-month")) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log("📅 EXTENDED CALENDAR: Clicked month", displayedMonth.format("MMM YYYY"));
+      tryToCreateMonthlyNote(displayedMonth, false, $settings);
+    } else if (target.classList.contains("calendar-title-year")) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log("📅 EXTENDED CALENDAR: Clicked year", displayedMonth.format("YYYY"));
+      tryToCreateYearlyNote(displayedMonth, false, $settings);
+    }
+  }
+
   afterUpdate(() => {
     if (!container) return;
 
-    // Find the header title. It usually contains the month and year.
-    // We look for an element that contains the formatted month and year.
-    const titleText = displayedMonth.format("MMMM YYYY");
-    const titleTextShort = displayedMonth.format("MMM YYYY");
+    const monthShort = displayedMonth.format("MMM"); // "Dec"
+    const year = displayedMonth.format("YYYY"); // "2025"
+    const currentMonthKey = `${monthShort}-${year}`;
 
-    // Helper to find text node
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-    let node;
-    let targetNode: Node | null = null;
-    while (node = walker.nextNode()) {
-      if (node.nodeValue === titleText || node.nodeValue === titleTextShort) {
-        targetNode = node;
-        break;
-      }
+    // Skip if we've already updated this month
+    if (currentMonthKey === lastUpdatedMonth) {
+      return;
     }
 
-    if (targetNode && targetNode.parentElement) {
-      const parent = targetNode.parentElement;
-      // Check if we already processed this element for the current month
-      // We can check if the text content matches what we expect for the split version
-      // But since we clear innerHTML, the text node won't be found next time unless we are careful.
-      // Actually, if we replace the text node with spans, the walker won't find the original text node anymore.
-      // So we don't need data-processed check if the text changes.
-      // However, svelte might re-render and put the text back.
+    lastUpdatedMonth = currentMonthKey;
+
+    console.log("📅 EXTENDED CALENDAR: Looking for header with month:", monthShort, "and year:", year);
+
+    // Find text nodes for month and year
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+    let node;
+    let monthNode: Node | null = null;
+    let yearNode: Node | null = null;
+
+    while (node = walker.nextNode()) {
+      if (node.nodeValue === monthShort && !monthNode) {
+        monthNode = node;
+        console.log("📅 EXTENDED CALENDAR: Found month node:", monthShort);
+      }
+      if (node.nodeValue === year && !yearNode) {
+        yearNode = node;
+        console.log("📅 EXTENDED CALENDAR: Found year node:", year);
+      }
+      if (monthNode && yearNode) break;
+    }
+
+    if (monthNode && monthNode.parentElement) {
+      const parent = monthNode.parentElement;
+      console.log("📅 EXTENDED CALENDAR: Found parent element:", parent.className, parent.tagName);
       
-      // If we found the text node, it means it's the original text.
-      
+      // Clear the parent content
       parent.innerHTML = "";
       parent.style.display = "flex";
       parent.style.alignItems = "center";
@@ -89,31 +127,62 @@
       parent.style.gap = "0.25em";
 
       const monthSpan = document.createElement("span");
-      monthSpan.innerText = displayedMonth.format("MMM");
+      monthSpan.innerText = monthShort;
       monthSpan.className = "calendar-title-month";
       monthSpan.style.cursor = "pointer";
-      monthSpan.style.pointerEvents = "auto";
-      monthSpan.addEventListener("click", (e) => {
-        e.preventDefault();
+      monthSpan.style.userSelect = "none";
+      monthSpan.style.WebkitUserSelect = "none";
+      monthSpan.style.padding = "0 4px";
+      monthSpan.style.transition = "opacity 0.2s";
+      // Direct onclick handler
+      monthSpan.onclick = (e) => {
         e.stopPropagation();
         e.stopImmediatePropagation();
+        console.log("📅 EXTENDED CALENDAR: Clicked month (via onclick)", displayedMonth.format("MMM YYYY"));
         tryToCreateMonthlyNote(displayedMonth, false, $settings);
-      }, true);
+        return false;
+      };
+      monthSpan.onmouseenter = () => {
+        monthSpan.style.opacity = "0.6";
+      };
+      monthSpan.onmouseleave = () => {
+        monthSpan.style.opacity = "1";
+      };
 
       const yearSpan = document.createElement("span");
-      yearSpan.innerText = displayedMonth.format("YYYY");
+      yearSpan.innerText = year;
       yearSpan.className = "calendar-title-year";
       yearSpan.style.cursor = "pointer";
-      yearSpan.style.pointerEvents = "auto";
-      yearSpan.addEventListener("click", (e) => {
-        e.preventDefault();
+      yearSpan.style.userSelect = "none";
+      yearSpan.style.WebkitUserSelect = "none";
+      yearSpan.style.padding = "0 4px";
+      yearSpan.style.transition = "opacity 0.2s";
+      // Direct onclick handler
+      yearSpan.onclick = (e) => {
         e.stopPropagation();
         e.stopImmediatePropagation();
+        console.log("📅 EXTENDED CALENDAR: Clicked year (via onclick)", displayedMonth.format("YYYY"));
         tryToCreateYearlyNote(displayedMonth, false, $settings);
-      }, true);
+        return false;
+      };
+      yearSpan.onmouseenter = () => {
+        yearSpan.style.opacity = "0.6";
+      };
+      yearSpan.onmouseleave = () => {
+        yearSpan.style.opacity = "1";
+      };
 
       parent.appendChild(monthSpan);
       parent.appendChild(yearSpan);
+
+      console.log("📅 EXTENDED CALENDAR: Created and appended month and year spans");
+
+      // Remove old listener if it exists
+      parent.removeEventListener("click", handleTitleClick, true);
+      // Add new listener with capture phase
+      parent.addEventListener("click", handleTitleClick, true);
+    } else {
+      console.log("📅 EXTENDED CALENDAR: Could not find month node or parent element");
     }
   });
 
@@ -130,8 +199,8 @@
   {onHoverWeek}
   {onContextMenuDay}
   {onContextMenuWeek}
-  {onClickDay}
-  {onClickWeek}
+  onClickDay={wrappedOnClickDay}
+  onClickWeek={wrappedOnClickWeek}
   bind:displayedMonth
   localeData={today.localeData()}
   selectedId={$activeFile}
