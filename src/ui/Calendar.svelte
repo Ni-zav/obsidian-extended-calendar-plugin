@@ -11,8 +11,8 @@
 
   import type { ISettings } from "src/settings";
   import { activeFile, dailyNotes, settings, weeklyNotes } from "./stores";
-  import { tryToCreateMonthlyNote } from "src/io/monthlyNotes";
-  import { tryToCreateYearlyNote } from "src/io/yearlyNotes";
+  import { openOrCreateMonthlyNote } from "src/io/monthlyNotes";
+  import { openOrCreateYearlyNote } from "src/io/yearlyNotes";
 
   let today: Moment;
   let lastUpdatedMonth: string = ""; // Track the last updated month to prevent duplicate updates
@@ -87,13 +87,16 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
             console.log("📅 EXTENDED CALENDAR: Clicked month (via onclick)", displayedMonth.format("MMM YYYY"));
-            tryToCreateMonthlyNote(displayedMonth, false, $settings);
+            openOrCreateMonthlyNote(displayedMonth, false, $settings);
             return false;
           };
+          if (!parent.classList.contains("extended-calendar-hover-effect")) {
+            parent.classList.add("extended-calendar-hover-effect");
+          }
         } else if (node.parentNode) {
           // Wrap it
           const span = document.createElement("span");
-          span.className = "extended-calendar-month-wrapper";
+          span.className = "extended-calendar-month-wrapper extended-calendar-hover-effect";
           span.style.cursor = "pointer";
           span.style.userSelect = "none";
           span.style.webkitUserSelect = "none";
@@ -101,7 +104,7 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
             console.log("📅 EXTENDED CALENDAR: Clicked month (via onclick)", displayedMonth.format("MMM YYYY"));
-            tryToCreateMonthlyNote(displayedMonth, false, $settings);
+            openOrCreateMonthlyNote(displayedMonth, false, $settings);
             return false;
           };
           
@@ -118,13 +121,16 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
             console.log("📅 EXTENDED CALENDAR: Clicked year (via onclick)", displayedMonth.format("YYYY"));
-            tryToCreateYearlyNote(displayedMonth, false, $settings);
+            openOrCreateYearlyNote(displayedMonth, false, $settings);
             return false;
           };
+          if (!parent.classList.contains("extended-calendar-hover-effect")) {
+            parent.classList.add("extended-calendar-hover-effect");
+          }
         } else if (node.parentNode) {
           // Wrap it
           const span = document.createElement("span");
-          span.className = "extended-calendar-year-wrapper";
+          span.className = "extended-calendar-year-wrapper extended-calendar-hover-effect";
           span.style.cursor = "pointer";
           span.style.userSelect = "none";
           span.style.webkitUserSelect = "none";
@@ -132,7 +138,7 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
             console.log("📅 EXTENDED CALENDAR: Clicked year (via onclick)", displayedMonth.format("YYYY"));
-            tryToCreateYearlyNote(displayedMonth, false, $settings);
+            openOrCreateYearlyNote(displayedMonth, false, $settings);
             return false;
           };
           
@@ -140,7 +146,23 @@
           span.appendChild(node);
         }
       }
+
+      if (node.nodeValue && node.nodeValue.trim() === "Today") {
+        const parent = node.parentElement;
+        if (parent) {
+          parent.classList.add("extended-calendar-hover-effect");
+          parent.style.cursor = "pointer";
+        }
+      }
     }
+
+    const svgs = container.querySelectorAll('svg');
+    svgs.forEach(svg => {
+      if (svg.parentElement) {
+        svg.parentElement.classList.add("extended-calendar-hover-effect");
+        svg.parentElement.style.cursor = "pointer";
+      }
+    });
   });
 
   onDestroy(() => {

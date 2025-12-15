@@ -23,6 +23,30 @@ async function createYearlyNoteFallback(date: Moment): Promise<TFile> {
   return await vault.create(path, "");
 }
 
+export async function openOrCreateYearlyNote(
+  date: Moment,
+  inNewSplit: boolean,
+  settings: ISettings,
+  cb?: (file: TFile) => void
+): Promise<void> {
+  const { workspace, vault } = window.app;
+  const { format, folder } = getYearlyNoteSettingsFallback();
+  const filename = date.format(format);
+  const path = normalizePath(`${folder}/${filename}.md`);
+
+  const existingFile = vault.getAbstractFileByPath(path);
+  if (existingFile && existingFile instanceof TFile) {
+    const leaf = inNewSplit
+      ? workspace.splitActiveLeaf()
+      : workspace.getUnpinnedLeaf();
+    await leaf.openFile(existingFile, { active: true });
+    cb?.(existingFile);
+    return;
+  }
+
+  await tryToCreateYearlyNote(date, inNewSplit, settings, cb);
+}
+
 /**
  * Create a Yearly Note for a given date.
  */
