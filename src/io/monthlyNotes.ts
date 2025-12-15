@@ -46,13 +46,32 @@ export async function tryToCreateMonthlyNote(
   const filename = date.format(format);
 
   const createFile = async () => {
-    const note = await createMonthlyNote(date);
-    const leaf = inNewSplit
-      ? workspace.splitActiveLeaf()
-      : workspace.getUnpinnedLeaf();
+    try {
+      const note = await createMonthlyNote(date);
+      const leaf = inNewSplit
+        ? workspace.splitActiveLeaf()
+        : workspace.getUnpinnedLeaf();
 
-    await leaf.openFile(note, { active : true });
-    cb?.(note);
+      await leaf.openFile(note, { active : true });
+      cb?.(note);
+    } catch (error) {
+      // If file already exists, try to open it instead
+      if (error instanceof Error && error.message.includes("File already exists")) {
+        const allMonthlyNotes = getAllMonthlyNotes();
+        const existingFile = getMonthlyNote(date, allMonthlyNotes);
+        
+        if (existingFile) {
+          const leaf = inNewSplit
+            ? workspace.splitActiveLeaf()
+            : workspace.getUnpinnedLeaf();
+          await leaf.openFile(existingFile, { active: true });
+          cb?.(existingFile);
+          return;
+        }
+      }
+      // Re-throw if it's a different error or file wasn't found
+      throw error;
+    }
   };
 
   if (settings.shouldConfirmBeforeCreate) {

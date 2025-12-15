@@ -56,18 +56,36 @@ export async function tryToCreateYearlyNote(
   settings: ISettings,
   cb?: (file: TFile) => void
 ): Promise<void> {
-  const { workspace } = window.app;
-  const { format } = getYearlyNoteSettingsFallback();
+  const { workspace, vault } = window.app;
+  const { format, folder } = getYearlyNoteSettingsFallback();
   const filename = date.format(format);
+  const path = normalizePath(`${folder}/${filename}.md`);
 
   const createFile = async () => {
-    const note = await createYearlyNoteFallback(date);
-    const leaf = inNewSplit
-      ? workspace.splitActiveLeaf()
-      : workspace.getUnpinnedLeaf();
+    try {
+      const note = await createYearlyNoteFallback(date);
+      const leaf = inNewSplit
+        ? workspace.splitActiveLeaf()
+        : workspace.getUnpinnedLeaf();
 
-    await leaf.openFile(note, { active : true });
-    cb?.(note);
+      await leaf.openFile(note, { active : true });
+      cb?.(note);
+    } catch (error) {
+      // If file already exists, try to open it instead
+      if (error instanceof Error && error.message.includes("File already exists")) {
+        const existingFile = vault.getAbstractFileByPath(path);
+        if (existingFile && existingFile instanceof TFile) {
+          const leaf = inNewSplit
+            ? workspace.splitActiveLeaf()
+            : workspace.getUnpinnedLeaf();
+          await leaf.openFile(existingFile, { active: true });
+          cb?.(existingFile);
+          return;
+        }
+      }
+      // Re-throw if it's a different error or file wasn't found
+      throw error;
+    }
   };
 
   if (settings.shouldConfirmBeforeCreate) {
