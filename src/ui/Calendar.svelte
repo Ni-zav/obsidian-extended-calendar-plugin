@@ -12,6 +12,7 @@
   import type { ISettings } from "src/settings";
   import { activeFile, dailyNotes, settings, weeklyNotes } from "./stores";
   import { openOrCreateMonthlyNote } from "src/io/monthlyNotes";
+  import { openOrCreateQuarterlyNote } from "src/io/quarterlyNotes";
   import { openOrCreateYearlyNote } from "src/io/yearlyNotes";
 
   let today: Moment;
@@ -72,9 +73,10 @@
     if (!container) return;
 
     const monthShort = displayedMonth.format("MMM"); // "Dec"
+    const quarter = "Q" + displayedMonth.format("Q"); // "Q1", "Q2", etc.
     const year = displayedMonth.format("YYYY"); // "2025"
 
-    // Find text nodes for month and year
+    // Find text nodes for month, quarter, and year
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
     let node;
 
@@ -94,7 +96,7 @@
             parent.classList.add("extended-calendar-hover-effect");
           }
         } else if (node.parentNode) {
-          // Wrap it
+          // Wrap it and add quarterly display after it
           const span = document.createElement("span");
           span.className = "extended-calendar-month-wrapper extended-calendar-hover-effect";
           span.style.cursor = "pointer";
@@ -110,6 +112,24 @@
           
           node.parentNode.replaceChild(span, node);
           span.appendChild(node);
+          
+          // Insert quarterly span after month
+          const quarterSpan = document.createElement("span");
+          quarterSpan.className = "extended-calendar-quarter-wrapper extended-calendar-hover-effect";
+          quarterSpan.style.cursor = "pointer";
+          quarterSpan.style.userSelect = "none";
+          quarterSpan.style.webkitUserSelect = "none";
+          quarterSpan.style.marginLeft = "0.5em";
+          quarterSpan.textContent = quarter;
+          quarterSpan.onclick = (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log("📅 EXTENDED CALENDAR: Clicked quarter (via onclick)", displayedMonth.format("[Q]Q YYYY"));
+            openOrCreateQuarterlyNote(displayedMonth, false, $settings);
+            return false;
+          };
+          
+          span.parentNode.insertBefore(quarterSpan, span.nextSibling);
         }
       }
       

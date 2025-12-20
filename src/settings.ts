@@ -22,6 +22,11 @@ export interface ISettings {
   yearlyNoteTemplate: string;
   yearlyNoteFolder: string;
 
+  // Quarterly Note settings
+  quarterlyNoteFormat: string;
+  quarterlyNoteTemplate: string;
+  quarterlyNoteFolder: string;
+
   localeOverride: ILocaleOverride;
 }
 
@@ -49,6 +54,10 @@ export const defaultSettings = Object.freeze({
   yearlyNoteFormat: "YYYY",
   yearlyNoteTemplate: "",
   yearlyNoteFolder: "",
+
+  quarterlyNoteFormat: "[Q]Q-YYYY",
+  quarterlyNoteTemplate: "",
+  quarterlyNoteFolder: "",
 
   localeOverride: "system-default",
 });
@@ -114,6 +123,13 @@ export class CalendarSettingsTab extends PluginSettingTab {
     this.addYearlyNoteFormatSetting();
     this.addYearlyNoteTemplateSetting();
     this.addYearlyNoteFolderSetting();
+
+    this.containerEl.createEl("h3", {
+      text: "Quarterly Note Settings",
+    });
+    this.addQuarterlyNoteFormatSetting();
+    this.addQuarterlyNoteTemplateSetting();
+    this.addQuarterlyNoteFolderSetting();
 
     this.containerEl.createEl("h3", {
       text: "Advanced Settings",
@@ -288,6 +304,45 @@ export class CalendarSettingsTab extends PluginSettingTab {
         textfield.setValue(this.plugin.options.yearlyNoteFolder);
         textfield.onChange(async (value) => {
           this.plugin.writeOptions(() => ({ yearlyNoteFolder: value }));
+        });
+      });
+  }
+
+  addQuarterlyNoteFormatSetting(): void {
+    new Setting(this.containerEl)
+      .setName("Quarterly note format")
+      .setDesc("For more syntax help, refer to format reference")
+      .addText((textfield) => {
+        textfield.setValue(this.plugin.options.quarterlyNoteFormat);
+        textfield.setPlaceholder("[Q]Q-YYYY");
+        textfield.onChange(async (value) => {
+          this.plugin.writeOptions(() => ({ quarterlyNoteFormat: value }));
+        });
+      });
+  }
+
+  addQuarterlyNoteTemplateSetting(): void {
+    new Setting(this.containerEl)
+      .setName("Quarterly note template")
+      .setDesc(
+        "Choose the file you want to use as the template for your quarterly notes"
+      )
+      .addText((textfield) => {
+        textfield.setValue(this.plugin.options.quarterlyNoteTemplate);
+        textfield.onChange(async (value) => {
+          this.plugin.writeOptions(() => ({ quarterlyNoteTemplate: value }));
+        });
+      });
+  }
+
+  addQuarterlyNoteFolderSetting(): void {
+    new Setting(this.containerEl)
+      .setName("Quarterly note folder")
+      .setDesc("New quarterly notes will be placed here")
+      .addText((textfield) => {
+        textfield.setValue(this.plugin.options.quarterlyNoteFolder);
+        textfield.onChange(async (value) => {
+          this.plugin.writeOptions(() => ({ quarterlyNoteFolder: value }));
         });
       });
   }

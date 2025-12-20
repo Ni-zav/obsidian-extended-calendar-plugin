@@ -4,3 +4,4 @@ main.js
 .vscode/
 *.code-workspace
 dist/
+bun.lock
