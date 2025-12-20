@@ -4,23 +4,13 @@ import { TFile, normalizePath } from "obsidian";
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";
 
-// Fallback implementations
-function getYearlyNoteSettingsFallback() {
-  return { format: "YYYY", folder: "", template: "" };
-}
-
-async function createYearlyNoteFallback(date: Moment): Promise<TFile> {
-  const { vault } = window.app;
-  const { format, folder } = getYearlyNoteSettingsFallback();
-  const filename = date.format(format);
-  const path = normalizePath(`${folder}/${filename}.md`);
-
-  const existingFile = vault.getAbstractFileByPath(path);
-  if (existingFile && existingFile instanceof TFile) {
-    return existingFile;
-  }
-
-  return await vault.create(path, "");
+// Get yearly note settings from plugin options
+function getYearlyNoteSettings(settings: ISettings) {
+  return {
+    format: settings.yearlyNoteFormat || "YYYY",
+    folder: settings.yearlyNoteFolder || "",
+    template: settings.yearlyNoteTemplate || "",
+  };
 }
 
 export async function openOrCreateYearlyNote(
@@ -30,7 +20,7 @@ export async function openOrCreateYearlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace, vault } = window.app;
-  const { format, folder } = getYearlyNoteSettingsFallback();
+  const { format, folder } = getYearlyNoteSettings(settings);
   const filename = date.format(format);
   const path = normalizePath(`${folder}/${filename}.md`);
 
@@ -57,13 +47,25 @@ export async function tryToCreateYearlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace, vault } = window.app;
-  const { format, folder } = getYearlyNoteSettingsFallback();
+  const { format, folder } = getYearlyNoteSettings(settings);
   const filename = date.format(format);
   const path = normalizePath(`${folder}/${filename}.md`);
 
   const createFile = async () => {
     try {
-      const note = await createYearlyNoteFallback(date);
+      // Check if file already exists before trying to create
+      const existingFile = vault.getAbstractFileByPath(path);
+      if (existingFile && existingFile instanceof TFile) {
+        const leaf = inNewSplit
+          ? workspace.splitActiveLeaf()
+          : workspace.getUnpinnedLeaf();
+        await leaf.openFile(existingFile, { active: true });
+        cb?.(existingFile);
+        return;
+      }
+
+      // Create new file
+      const note = await vault.create(path, "# " + filename + "\n");
       const leaf = inNewSplit
         ? workspace.splitActiveLeaf()
         : workspace.getUnpinnedLeaf();
