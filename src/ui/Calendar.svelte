@@ -11,16 +11,16 @@
   import { getMonthlyNote } from "obsidian-daily-notes-interface";
 
   import type { ISettings } from "src/settings";
-  import { 
-    activeFile, 
-    dailyNotes, 
-    settings, 
-    weeklyNotes, 
-    monthlyNotes, 
-    quarterlyNotes, 
+  import {
+    activeFile,
+    dailyNotes,
+    settings,
+    weeklyNotes,
+    monthlyNotes,
+    quarterlyNotes,
     yearlyNotes,
     getQuarterlyNote,
-    getYearlyNote 
+    getYearlyNote,
   } from "./stores";
   import { openOrCreateMonthlyNote } from "src/io/monthlyNotes";
   import { openOrCreateQuarterlyNote } from "src/io/quarterlyNotes";
@@ -42,12 +42,20 @@
 
   // Wrap handlers with logging
   const wrappedOnClickDay = (date: Moment, isMetaPressed: boolean) => {
-    console.log("📅 EXTENDED CALENDAR: Clicked day", date.format("YYYY-MM-DD"), { isMetaPressed });
+    console.log(
+      "📅 EXTENDED CALENDAR: Clicked day",
+      date.format("YYYY-MM-DD"),
+      { isMetaPressed },
+    );
     return onClickDay?.(date, isMetaPressed);
   };
 
   const wrappedOnClickWeek = (date: Moment, isMetaPressed: boolean) => {
-    console.log("📅 EXTENDED CALENDAR: Clicked week", date.format("YYYY-[W]ww"), { isMetaPressed });
+    console.log(
+      "📅 EXTENDED CALENDAR: Clicked week",
+      date.format("YYYY-[W]ww"),
+      { isMetaPressed },
+    );
     return onClickWeek?.(date, isMetaPressed);
   };
 
@@ -96,13 +104,17 @@
     yearlyNotes.reindex();
 
     // Check if notes exist for the displayed month/quarter/year
-    const hasMonthlyNote = getMonthlyNote(displayedMonth, $monthlyNotes) !== null;
-    const hasQuarterlyNote = getQuarterlyNote(displayedMonth, $quarterlyNotes) !== null;
+    const hasMonthlyNote =
+      getMonthlyNote(displayedMonth, $monthlyNotes) !== null;
+    const hasQuarterlyNote =
+      getQuarterlyNote(displayedMonth, $quarterlyNotes) !== null;
     const hasYearlyNote = getYearlyNote(displayedMonth, $yearlyNotes) !== null;
 
     // Helper to create/update a dot indicator
     function updateDotIndicator(parent: HTMLElement, exists: boolean) {
-      let dot = parent.querySelector(".extended-calendar-note-indicator") as HTMLElement;
+      let dot = parent.querySelector(
+        ".extended-calendar-note-indicator",
+      ) as HTMLElement;
       if (!dot) {
         dot = document.createElement("span");
         dot.className = "extended-calendar-note-indicator";
@@ -120,28 +132,70 @@
     }
 
     // First, check if wrappers already exist and update them
-    const existingMonthWrapper = container.querySelector(".extended-calendar-month-wrapper") as HTMLElement;
-    const existingQuarterWrapper = container.querySelector(".extended-calendar-quarter-wrapper") as HTMLElement;
-    const existingYearWrapper = container.querySelector(".extended-calendar-year-wrapper") as HTMLElement;
+    const existingMonthWrapper = container.querySelector(
+      ".extended-calendar-month-wrapper",
+    ) as HTMLElement;
+    const existingQuarterWrapper = container.querySelector(
+      ".extended-calendar-quarter-wrapper",
+    ) as HTMLElement;
+    const existingYearWrapper = container.querySelector(
+      ".extended-calendar-year-wrapper",
+    ) as HTMLElement;
+
+    // Check if current file is the note for this period
+    const monthlyNote = getMonthlyNote(displayedMonth, $monthlyNotes);
+    const quarterlyNote = getQuarterlyNote(displayedMonth, $quarterlyNotes);
+    const yearlyNote = getYearlyNote(displayedMonth, $yearlyNotes);
+
+    // Get the currently active file path
+    const currentFile = window.app.workspace.getActiveFile();
+    const isMonthlyNoteActive =
+      currentFile && monthlyNote && currentFile.path === monthlyNote.path;
+    const isQuarterlyNoteActive =
+      currentFile && quarterlyNote && currentFile.path === quarterlyNote.path;
+    const isYearlyNoteActive =
+      currentFile && yearlyNote && currentFile.path === yearlyNote.path;
 
     if (existingMonthWrapper) {
       updateDotIndicator(existingMonthWrapper, hasMonthlyNote);
+      // Update active state
+      if (isMonthlyNoteActive) {
+        existingMonthWrapper.classList.add("is-active");
+      } else {
+        existingMonthWrapper.classList.remove("is-active");
+      }
     }
 
     if (existingQuarterWrapper) {
       // Update the quarter text (preserve the dot)
-      const dot = existingQuarterWrapper.querySelector(".extended-calendar-note-indicator");
+      const dot = existingQuarterWrapper.querySelector(
+        ".extended-calendar-note-indicator",
+      );
       // Get just the text node
-      const textNodes = Array.from(existingQuarterWrapper.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+      const textNodes = Array.from(existingQuarterWrapper.childNodes).filter(
+        (n) => n.nodeType === Node.TEXT_NODE,
+      );
       if (textNodes.length > 0) {
         textNodes[0].textContent = quarter;
-      } else if (existingQuarterWrapper.firstChild && existingQuarterWrapper.firstChild.nodeType === Node.TEXT_NODE) {
+      } else if (
+        existingQuarterWrapper.firstChild &&
+        existingQuarterWrapper.firstChild.nodeType === Node.TEXT_NODE
+      ) {
         existingQuarterWrapper.firstChild.textContent = quarter;
       } else {
         // No text node found, insert one at the beginning
-        existingQuarterWrapper.insertBefore(document.createTextNode(quarter), existingQuarterWrapper.firstChild);
+        existingQuarterWrapper.insertBefore(
+          document.createTextNode(quarter),
+          existingQuarterWrapper.firstChild,
+        );
       }
       updateDotIndicator(existingQuarterWrapper, hasQuarterlyNote);
+      // Update active state
+      if (isQuarterlyNoteActive) {
+        existingQuarterWrapper.classList.add("is-active");
+      } else {
+        existingQuarterWrapper.classList.remove("is-active");
+      }
       // Update click handler
       existingQuarterWrapper.onclick = (e) => {
         e.stopPropagation();
@@ -153,20 +207,41 @@
 
     if (existingYearWrapper) {
       updateDotIndicator(existingYearWrapper, hasYearlyNote);
+      // Update active state
+      if (isYearlyNoteActive) {
+        existingYearWrapper.classList.add("is-active");
+      } else {
+        existingYearWrapper.classList.remove("is-active");
+      }
     }
 
     // If wrappers don't exist yet, create them using tree walker
-    if (!existingMonthWrapper || !existingQuarterWrapper || !existingYearWrapper) {
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+    if (
+      !existingMonthWrapper ||
+      !existingQuarterWrapper ||
+      !existingYearWrapper
+    ) {
+      const walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null,
+      );
       let node;
 
-      while (node = walker.nextNode()) {
+      while ((node = walker.nextNode())) {
         if (node.nodeValue === monthShort && !existingMonthWrapper) {
           const parent = node.parentElement;
-          if (parent && !parent.classList.contains("extended-calendar-month-wrapper")) {
+          if (
+            parent &&
+            !parent.classList.contains("extended-calendar-month-wrapper")
+          ) {
             // Wrap it and add quarterly display after it
             const span = document.createElement("span");
-            span.className = "extended-calendar-month-wrapper extended-calendar-hover-effect";
+            span.className =
+              "extended-calendar-month-wrapper extended-calendar-hover-effect";
+            if (isMonthlyNoteActive) {
+              span.classList.add("is-active");
+            }
             span.style.cursor = "pointer";
             span.style.userSelect = "none";
             span.style.webkitUserSelect = "none";
@@ -176,14 +251,18 @@
               openOrCreateMonthlyNote(displayedMonth, false, $settings);
               return false;
             };
-            
+
             node.parentNode.replaceChild(span, node);
             span.appendChild(node);
             updateDotIndicator(span, hasMonthlyNote);
-            
+
             // Insert quarterly span after month
             const quarterSpan = document.createElement("span");
-            quarterSpan.className = "extended-calendar-quarter-wrapper extended-calendar-hover-effect";
+            quarterSpan.className =
+              "extended-calendar-quarter-wrapper extended-calendar-hover-effect";
+            if (isQuarterlyNoteActive) {
+              quarterSpan.classList.add("is-active");
+            }
             quarterSpan.style.cursor = "pointer";
             quarterSpan.style.userSelect = "none";
             quarterSpan.style.webkitUserSelect = "none";
@@ -196,17 +275,24 @@
               return false;
             };
             updateDotIndicator(quarterSpan, hasQuarterlyNote);
-            
+
             span.parentNode.insertBefore(quarterSpan, span.nextSibling);
           }
         }
-        
+
         if (node.nodeValue === year && !existingYearWrapper) {
           const parent = node.parentElement;
-          if (parent && !parent.classList.contains("extended-calendar-year-wrapper")) {
+          if (
+            parent &&
+            !parent.classList.contains("extended-calendar-year-wrapper")
+          ) {
             // Wrap it
             const span = document.createElement("span");
-            span.className = "extended-calendar-year-wrapper extended-calendar-hover-effect";
+            span.className =
+              "extended-calendar-year-wrapper extended-calendar-hover-effect";
+            if (isYearlyNoteActive) {
+              span.classList.add("is-active");
+            }
             span.style.cursor = "pointer";
             span.style.userSelect = "none";
             span.style.webkitUserSelect = "none";
@@ -216,7 +302,7 @@
               openOrCreateYearlyNote(displayedMonth, false, $settings);
               return false;
             };
-            
+
             node.parentNode.replaceChild(span, node);
             span.appendChild(node);
             updateDotIndicator(span, hasYearlyNote);
@@ -233,8 +319,8 @@
       }
     }
 
-    const svgs = container.querySelectorAll('svg');
-    svgs.forEach(svg => {
+    const svgs = container.querySelectorAll("svg");
+    svgs.forEach((svg) => {
       if (svg.parentElement) {
         svg.parentElement.classList.add("extended-calendar-hover-effect");
         svg.parentElement.style.cursor = "pointer";
@@ -248,18 +334,18 @@
 </script>
 
 <div bind:this={container}>
-<CalendarBase
-  {sources}
-  {today}
-  {onHoverDay}
-  {onHoverWeek}
-  {onContextMenuDay}
-  {onContextMenuWeek}
-  onClickDay={wrappedOnClickDay}
-  onClickWeek={wrappedOnClickWeek}
-  bind:displayedMonth
-  localeData={today.localeData()}
-  selectedId={$activeFile}
-  showWeekNums={$settings.showWeeklyNote}
-/>
+  <CalendarBase
+    {sources}
+    {today}
+    {onHoverDay}
+    {onHoverWeek}
+    {onContextMenuDay}
+    {onContextMenuWeek}
+    onClickDay={wrappedOnClickDay}
+    onClickWeek={wrappedOnClickWeek}
+    bind:displayedMonth
+    localeData={today.localeData()}
+    selectedId={$activeFile}
+    showWeekNums={$settings.showWeeklyNote}
+  />
 </div>

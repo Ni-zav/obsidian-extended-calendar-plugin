@@ -19,3 +19,14 @@
 .extended-calendar-hover-effect:hover {
   background-color: var(--background-modifier-hover) !important;
 }
+
+/* Active state for periodic note labels (when that note is currently open) */
+.extended-calendar-month-wrapper.is-active,
+.extended-calendar-quarter-wrapper.is-active,
+.extended-calendar-year-wrapper.is-active {
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--text-accent);
+}
