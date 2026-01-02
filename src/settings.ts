@@ -236,4 +236,6 @@ export class CalendarSettingsTab extends PluginSettingTab {
         });
       });
   }
+
+
 }

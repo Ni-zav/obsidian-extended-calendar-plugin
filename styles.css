@@ -9,3 +9,13 @@
 .settings-banner h4 {
   margin: 0;
 }
+
+.extended-calendar-hover-effect {
+  border-radius: 4px;
+  transition: background-color 0.1s ease-in-out;
+  padding: 2px 4px;
+}
+
+.extended-calendar-hover-effect:hover {
+  background-color: var(--background-modifier-hover) !important;
+}

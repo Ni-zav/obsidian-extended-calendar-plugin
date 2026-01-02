@@ -4,6 +4,10 @@ This plugin for [Obsidian](https://obsidian.md/) creates a simple Calendar view 
 
 ![screenshot-full](https://raw.githubusercontent.com/liamcain/obsidian-calendar-plugin/master/images/screenshot-full.png)
 
+## Credits
+
+Based on the original [obsidian-calendar-plugin](https://github.com/liamcain/obsidian-calendar-plugin) by [Liam Cain](https://github.com/liamcain)
+
 ## Usage
 
 After enabling the plugin in the settings menu, you should see the calendar view appear in the right sidebar.
@@ -16,6 +20,8 @@ The plugin reads your Daily Note settings to know your date format, your daily n
 - Create new daily notes for days that don't have one. (This is helpful for when you need to backfill old notes or if you're planning ahead for future notes! This will use your current **daily note** template!)
 - Visualize your writing. Each day includes a meter to approximate how much you've written that day.
 - Use **Weekly notes** for an added organization layer! They work just like daily notes, but have their own customization options.
+- Click on the **month** in the calendar header to open/create **monthly notes** (format: `yyyy-mm`).
+- Click on the **year** in the calendar header to open/create **yearly notes** (format: `yyyy`).
 
 ## Settings
 

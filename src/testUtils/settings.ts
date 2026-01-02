@@ -13,6 +13,7 @@ export function getDefaultSettings(
       weeklyNoteFolder: "",
       weeklyNoteFormat: "",
       weeklyNoteTemplate: "",
+      localeOverride: "system-default",
     },
     overrides
   );

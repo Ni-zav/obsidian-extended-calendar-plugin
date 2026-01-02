@@ -9,10 +9,10 @@ export default {
   input: "src/main.ts",
   output: {
     format: "cjs",
-    file: "main.js",
+    file: "dist/main.js",
     exports: "default",
   },
-  external: ["obsidian", "fs", "os", "path"],
+  external: ["obsidian"],
   plugins: [
     svelte({
       emitCss: false,

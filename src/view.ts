@@ -16,7 +16,7 @@ import type { ISettings } from "src/settings";
 
 import Calendar from "./ui/Calendar.svelte";
 import { showFileMenu } from "./ui/fileMenu";
-import { activeFile, dailyNotes, weeklyNotes, settings } from "./ui/stores";
+import { activeFile, dailyNotes, weeklyNotes, monthlyNotes, settings } from "./ui/stores";
 import {
   customTagsSource,
   streakSource,
@@ -179,6 +179,7 @@ export default class CalendarView extends ItemView {
   private onNoteSettingsUpdate(): void {
     dailyNotes.reindex();
     weeklyNotes.reindex();
+    monthlyNotes.reindex();
     this.updateActiveFile();
   }
 
@@ -191,10 +192,14 @@ export default class CalendarView extends ItemView {
       weeklyNotes.reindex();
       this.updateActiveFile();
     }
+    if (getDateFromFile(file, "month")) {
+      monthlyNotes.reindex();
+      this.updateActiveFile();
+    }
   }
 
   private async onFileModified(file: TFile): Promise<void> {
-    const date = getDateFromFile(file, "day") || getDateFromFile(file, "week");
+    const date = getDateFromFile(file, "day") || getDateFromFile(file, "week") || getDateFromFile(file, "month");
     if (date && this.calendar) {
       this.calendar.tick();
     }
@@ -208,6 +213,10 @@ export default class CalendarView extends ItemView {
       }
       if (getDateFromFile(file, "week")) {
         weeklyNotes.reindex();
+        this.calendar.tick();
+      }
+      if (getDateFromFile(file, "month")) {
+        monthlyNotes.reindex();
         this.calendar.tick();
       }
     }
