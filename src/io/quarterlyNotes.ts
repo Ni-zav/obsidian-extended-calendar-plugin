@@ -1,5 +1,5 @@
 import type { Moment } from "moment";
-import { TFile, normalizePath } from "obsidian";
+import { Notice, TFile, normalizePath } from "obsidian";
 
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";
@@ -11,6 +11,33 @@ function getQuarterlyNoteSettings(settings: ISettings) {
     folder: settings.quarterlyNoteFolder || "",
     template: settings.quarterlyNoteTemplate || "",
   };
+}
+
+/**
+ * Read template file contents and fold info
+ */
+async function getTemplateInfo(template: string): Promise<[string, any]> {
+  const { metadataCache, vault } = window.app;
+  const templatePath = normalizePath(template);
+  
+  if (templatePath === "/" || templatePath === "") {
+    return Promise.resolve(["", null]);
+  }
+
+  try {
+    const templateFile = metadataCache.getFirstLinkpathDest(templatePath, "");
+    if (!templateFile) {
+      return ["", null];
+    }
+    const contents = await vault.cachedRead(templateFile);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const IFoldInfo = (window.app as any).foldManager.load(templateFile);
+    return [contents, IFoldInfo];
+  } catch (err) {
+    console.error(`Failed to read the quarterly note template '${templatePath}'`, err);
+    new Notice("Failed to read the quarterly note template");
+    return ["", null];
+  }
 }
 
 export async function openOrCreateQuarterlyNote(
@@ -47,7 +74,7 @@ export async function tryToCreateQuarterlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace, vault } = window.app;
-  const { format, folder } = getQuarterlyNoteSettings(settings);
+  const { format, folder, template } = getQuarterlyNoteSettings(settings);
   const filename = date.format(format);
   const path = normalizePath(`${folder}/${filename}.md`);
 
@@ -64,8 +91,43 @@ export async function tryToCreateQuarterlyNote(
         return;
       }
 
-      // Create new file
-      const note = await vault.create(path, "# " + filename + "\n");
+      // Get template contents
+      const [templateContents, IFoldInfo] = await getTemplateInfo(template);
+      
+      // Process template variables
+      const moment = window.moment;
+      const fileContent = templateContents
+        .replace(/{{\\s*date\\s*}}/gi, filename)
+        .replace(/{{\\s*time\\s*}}/gi, moment().format("HH:mm"))
+        .replace(/{{\\s*title\\s*}}/gi, filename)
+        .replace(
+          /{{\\s*(date|time)\\s*(([+-]\\d+)([yqmwdhs]))?\\s*(:.+?)?}}/gi,
+          (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+            const now = moment();
+            const currentDate = date.clone().set({
+              hour: now.get("hour"),
+              minute: now.get("minute"),
+              second: now.get("second"),
+            });
+            if (calc) {
+              currentDate.add(parseInt(timeDelta, 10), unit);
+            }
+            if (momentFormat) {
+              return currentDate.format(momentFormat.substring(1).trim());
+            }
+            return currentDate.format(format);
+          }
+        );
+
+      // Create new file with processed template
+      const note = await vault.create(path, fileContent || "# " + filename + "\n");
+      
+      // Save fold info if available
+      if (IFoldInfo) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window.app as any).foldManager.save(note, IFoldInfo);
+      }
+      
       const leaf = inNewSplit
         ? workspace.splitActiveLeaf()
         : workspace.getUnpinnedLeaf();
