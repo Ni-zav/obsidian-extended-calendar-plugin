@@ -90,151 +90,145 @@
     const quarter = "Q" + displayedMonth.format("Q"); // "Q1", "Q2", etc.
     const year = displayedMonth.format("YYYY"); // "2025"
 
+    // Reindex notes stores to get fresh data
+    monthlyNotes.reindex();
+    quarterlyNotes.reindex();
+    yearlyNotes.reindex();
+
     // Check if notes exist for the displayed month/quarter/year
     const hasMonthlyNote = getMonthlyNote(displayedMonth, $monthlyNotes) !== null;
     const hasQuarterlyNote = getQuarterlyNote(displayedMonth, $quarterlyNotes) !== null;
     const hasYearlyNote = getYearlyNote(displayedMonth, $yearlyNotes) !== null;
 
-    // Helper to create a dot indicator
-    function createDotIndicator(exists: boolean): HTMLElement {
-      const dot = document.createElement("span");
-      dot.className = "extended-calendar-note-indicator";
-      dot.style.display = "inline-block";
-      dot.style.width = "6px";
-      dot.style.height = "6px";
-      dot.style.borderRadius = "50%";
-      dot.style.marginLeft = "4px";
-      dot.style.verticalAlign = "middle";
+    // Helper to create/update a dot indicator
+    function updateDotIndicator(parent: HTMLElement, exists: boolean) {
+      let dot = parent.querySelector(".extended-calendar-note-indicator") as HTMLElement;
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "extended-calendar-note-indicator";
+        dot.style.display = "inline-block";
+        dot.style.width = "6px";
+        dot.style.height = "6px";
+        dot.style.borderRadius = "50%";
+        dot.style.marginLeft = "4px";
+        dot.style.verticalAlign = "middle";
+        parent.appendChild(dot);
+      }
       dot.style.backgroundColor = exists ? "var(--text-accent)" : "transparent";
       dot.style.border = exists ? "none" : "1px solid var(--text-muted)";
       dot.title = exists ? "Note exists" : "No note";
-      return dot;
     }
 
-    // Find text nodes for month, quarter, and year
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-    let node;
+    // First, check if wrappers already exist and update them
+    const existingMonthWrapper = container.querySelector(".extended-calendar-month-wrapper") as HTMLElement;
+    const existingQuarterWrapper = container.querySelector(".extended-calendar-quarter-wrapper") as HTMLElement;
+    const existingYearWrapper = container.querySelector(".extended-calendar-year-wrapper") as HTMLElement;
 
-    while (node = walker.nextNode()) {
-      if (node.nodeValue === monthShort) {
-        const parent = node.parentElement;
-        if (parent && parent.classList.contains("extended-calendar-month-wrapper")) {
-          // Update handler
-          parent.onclick = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log("📅 EXTENDED CALENDAR: Clicked month (via onclick)", displayedMonth.format("MMM YYYY"));
-            openOrCreateMonthlyNote(displayedMonth, false, $settings);
-            return false;
-          };
-          if (!parent.classList.contains("extended-calendar-hover-effect")) {
+    if (existingMonthWrapper) {
+      updateDotIndicator(existingMonthWrapper, hasMonthlyNote);
+    }
+
+    if (existingQuarterWrapper) {
+      // Update the quarter text (preserve the dot)
+      const dot = existingQuarterWrapper.querySelector(".extended-calendar-note-indicator");
+      // Get just the text node
+      const textNodes = Array.from(existingQuarterWrapper.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+      if (textNodes.length > 0) {
+        textNodes[0].textContent = quarter;
+      } else if (existingQuarterWrapper.firstChild && existingQuarterWrapper.firstChild.nodeType === Node.TEXT_NODE) {
+        existingQuarterWrapper.firstChild.textContent = quarter;
+      } else {
+        // No text node found, insert one at the beginning
+        existingQuarterWrapper.insertBefore(document.createTextNode(quarter), existingQuarterWrapper.firstChild);
+      }
+      updateDotIndicator(existingQuarterWrapper, hasQuarterlyNote);
+      // Update click handler
+      existingQuarterWrapper.onclick = (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openOrCreateQuarterlyNote(displayedMonth, false, $settings);
+        return false;
+      };
+    }
+
+    if (existingYearWrapper) {
+      updateDotIndicator(existingYearWrapper, hasYearlyNote);
+    }
+
+    // If wrappers don't exist yet, create them using tree walker
+    if (!existingMonthWrapper || !existingQuarterWrapper || !existingYearWrapper) {
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+      let node;
+
+      while (node = walker.nextNode()) {
+        if (node.nodeValue === monthShort && !existingMonthWrapper) {
+          const parent = node.parentElement;
+          if (parent && !parent.classList.contains("extended-calendar-month-wrapper")) {
+            // Wrap it and add quarterly display after it
+            const span = document.createElement("span");
+            span.className = "extended-calendar-month-wrapper extended-calendar-hover-effect";
+            span.style.cursor = "pointer";
+            span.style.userSelect = "none";
+            span.style.webkitUserSelect = "none";
+            span.onclick = (e) => {
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              openOrCreateMonthlyNote(displayedMonth, false, $settings);
+              return false;
+            };
+            
+            node.parentNode.replaceChild(span, node);
+            span.appendChild(node);
+            updateDotIndicator(span, hasMonthlyNote);
+            
+            // Insert quarterly span after month
+            const quarterSpan = document.createElement("span");
+            quarterSpan.className = "extended-calendar-quarter-wrapper extended-calendar-hover-effect";
+            quarterSpan.style.cursor = "pointer";
+            quarterSpan.style.userSelect = "none";
+            quarterSpan.style.webkitUserSelect = "none";
+            quarterSpan.style.marginLeft = "0.5em";
+            quarterSpan.appendChild(document.createTextNode(quarter));
+            quarterSpan.onclick = (e) => {
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              openOrCreateQuarterlyNote(displayedMonth, false, $settings);
+              return false;
+            };
+            updateDotIndicator(quarterSpan, hasQuarterlyNote);
+            
+            span.parentNode.insertBefore(quarterSpan, span.nextSibling);
+          }
+        }
+        
+        if (node.nodeValue === year && !existingYearWrapper) {
+          const parent = node.parentElement;
+          if (parent && !parent.classList.contains("extended-calendar-year-wrapper")) {
+            // Wrap it
+            const span = document.createElement("span");
+            span.className = "extended-calendar-year-wrapper extended-calendar-hover-effect";
+            span.style.cursor = "pointer";
+            span.style.userSelect = "none";
+            span.style.webkitUserSelect = "none";
+            span.onclick = (e) => {
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              openOrCreateYearlyNote(displayedMonth, false, $settings);
+              return false;
+            };
+            
+            node.parentNode.replaceChild(span, node);
+            span.appendChild(node);
+            updateDotIndicator(span, hasYearlyNote);
+          }
+        }
+
+        if (node.nodeValue && node.nodeValue.trim() === "Today") {
+          const parent = node.parentElement;
+          if (parent) {
             parent.classList.add("extended-calendar-hover-effect");
+            parent.style.cursor = "pointer";
           }
-          // Update or add dot indicator
-          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
-          if (existingDot) {
-            existingDot.remove();
-          }
-          parent.appendChild(createDotIndicator(hasMonthlyNote));
-        } else if (node.parentNode) {
-          // Wrap it and add quarterly display after it
-          const span = document.createElement("span");
-          span.className = "extended-calendar-month-wrapper extended-calendar-hover-effect";
-          span.style.cursor = "pointer";
-          span.style.userSelect = "none";
-          span.style.webkitUserSelect = "none";
-          span.onclick = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log("📅 EXTENDED CALENDAR: Clicked month (via onclick)", displayedMonth.format("MMM YYYY"));
-            openOrCreateMonthlyNote(displayedMonth, false, $settings);
-            return false;
-          };
-          
-          node.parentNode.replaceChild(span, node);
-          span.appendChild(node);
-          span.appendChild(createDotIndicator(hasMonthlyNote));
-          
-          // Insert quarterly span after month
-          const quarterSpan = document.createElement("span");
-          quarterSpan.className = "extended-calendar-quarter-wrapper extended-calendar-hover-effect";
-          quarterSpan.style.cursor = "pointer";
-          quarterSpan.style.userSelect = "none";
-          quarterSpan.style.webkitUserSelect = "none";
-          quarterSpan.style.marginLeft = "0.5em";
-          quarterSpan.textContent = quarter;
-          quarterSpan.onclick = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log("📅 EXTENDED CALENDAR: Clicked quarter (via onclick)", displayedMonth.format("[Q]Q YYYY"));
-            openOrCreateQuarterlyNote(displayedMonth, false, $settings);
-            return false;
-          };
-          quarterSpan.appendChild(createDotIndicator(hasQuarterlyNote));
-          
-          span.parentNode.insertBefore(quarterSpan, span.nextSibling);
-        }
-      }
-      
-      if (node.nodeValue === year) {
-        const parent = node.parentElement;
-        if (parent && parent.classList.contains("extended-calendar-year-wrapper")) {
-          // Update handler
-          parent.onclick = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log("📅 EXTENDED CALENDAR: Clicked year (via onclick)", displayedMonth.format("YYYY"));
-            openOrCreateYearlyNote(displayedMonth, false, $settings);
-            return false;
-          };
-          if (!parent.classList.contains("extended-calendar-hover-effect")) {
-            parent.classList.add("extended-calendar-hover-effect");
-          }
-          // Update or add dot indicator
-          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
-          if (existingDot) {
-            existingDot.remove();
-          }
-          parent.appendChild(createDotIndicator(hasYearlyNote));
-        } else if (node.parentNode) {
-          // Wrap it
-          const span = document.createElement("span");
-          span.className = "extended-calendar-year-wrapper extended-calendar-hover-effect";
-          span.style.cursor = "pointer";
-          span.style.userSelect = "none";
-          span.style.webkitUserSelect = "none";
-          span.onclick = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log("📅 EXTENDED CALENDAR: Clicked year (via onclick)", displayedMonth.format("YYYY"));
-            openOrCreateYearlyNote(displayedMonth, false, $settings);
-            return false;
-          };
-          
-          node.parentNode.replaceChild(span, node);
-          span.appendChild(node);
-          span.appendChild(createDotIndicator(hasYearlyNote));
-        }
-      }
-
-      // Update quarterly indicator if it already exists
-      if (node.nodeValue === quarter) {
-        const parent = node.parentElement;
-        if (parent && parent.classList.contains("extended-calendar-quarter-wrapper")) {
-          // Update or add dot indicator
-          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
-          if (existingDot) {
-            existingDot.remove();
-          }
-          parent.appendChild(createDotIndicator(hasQuarterlyNote));
-        }
-      }
-
-      if (node.nodeValue && node.nodeValue.trim() === "Today") {
-        const parent = node.parentElement;
-        if (parent) {
-          parent.classList.add("extended-calendar-hover-effect");
-          parent.style.cursor = "pointer";
         }
       }
     }
