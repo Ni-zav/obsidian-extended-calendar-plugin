@@ -4,13 +4,32 @@ import { Notice, TFile, normalizePath } from "obsidian";
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";
 
-// Get yearly note settings from plugin options
-function getYearlyNoteSettings(settings: ISettings) {
-  return {
-    format: settings.yearlyNoteFormat || "YYYY",
-    folder: settings.yearlyNoteFolder || "",
-    template: settings.yearlyNoteTemplate || "",
-  };
+const DEFAULT_YEARLY_NOTE_FORMAT = "YYYY";
+
+/**
+ * Read the user settings for the `periodic-notes` plugin
+ * to keep behavior of creating a new note in-sync.
+ */
+function getYearlyNoteSettings() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pluginManager = (window.app as any).plugins;
+  try {
+    const periodicNotes = pluginManager.getPlugin("periodic-notes");
+    const settings = periodicNotes?.settings?.yearly || {};
+    
+    return {
+      format: settings.format || DEFAULT_YEARLY_NOTE_FORMAT,
+      folder: settings.folder?.trim() || "",
+      template: settings.template?.trim() || "",
+    };
+  } catch (err) {
+    console.info("No custom yearly note settings found!", err);
+    return {
+      format: DEFAULT_YEARLY_NOTE_FORMAT,
+      folder: "",
+      template: "",
+    };
+  }
 }
 
 /**
@@ -47,11 +66,11 @@ export async function openOrCreateYearlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace, vault } = window.app;
-  const { format, folder } = getYearlyNoteSettings(settings);
+  const { format, folder } = getYearlyNoteSettings();
   const filename = date.format(format);
-  const path = normalizePath(`${folder}/${filename}.md`);
+  const normalizedPath = normalizePath(folder ? `${folder}/${filename}.md` : `${filename}.md`);
 
-  const existingFile = vault.getAbstractFileByPath(path);
+  const existingFile = vault.getAbstractFileByPath(normalizedPath);
   if (existingFile && existingFile instanceof TFile) {
     const leaf = inNewSplit
       ? workspace.splitActiveLeaf()
@@ -74,14 +93,14 @@ export async function tryToCreateYearlyNote(
   cb?: (file: TFile) => void
 ): Promise<void> {
   const { workspace, vault } = window.app;
-  const { format, folder, template } = getYearlyNoteSettings(settings);
+  const { format, folder, template } = getYearlyNoteSettings();
   const filename = date.format(format);
-  const path = normalizePath(`${folder}/${filename}.md`);
+  const normalizedPath = normalizePath(folder ? `${folder}/${filename}.md` : `${filename}.md`);
 
   const createFile = async () => {
     try {
       // Check if file already exists before trying to create
-      const existingFile = vault.getAbstractFileByPath(path);
+      const existingFile = vault.getAbstractFileByPath(normalizedPath);
       if (existingFile && existingFile instanceof TFile) {
         const leaf = inNewSplit
           ? workspace.splitActiveLeaf()
@@ -91,17 +110,25 @@ export async function tryToCreateYearlyNote(
         return;
       }
 
+      // Ensure folder exists
+      if (folder) {
+        const folderPath = normalizePath(folder);
+        if (!vault.getAbstractFileByPath(folderPath)) {
+          await vault.createFolder(folderPath);
+        }
+      }
+
       // Get template contents
       const [templateContents, IFoldInfo] = await getTemplateInfo(template);
       
-      // Process template variables
+      // Process template variables (same as obsidian-daily-notes-interface)
       const moment = window.moment;
       const fileContent = templateContents
-        .replace(/{{\\s*date\\s*}}/gi, filename)
-        .replace(/{{\\s*time\\s*}}/gi, moment().format("HH:mm"))
-        .replace(/{{\\s*title\\s*}}/gi, filename)
+        .replace(/{{\s*date\s*}}/gi, filename)
+        .replace(/{{\s*time\s*}}/gi, moment().format("HH:mm"))
+        .replace(/{{\s*title\s*}}/gi, filename)
         .replace(
-          /{{\\s*(date|time)\\s*(([+-]\\d+)([yqmwdhs]))?\\s*(:.+?)?}}/gi,
+          /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
           (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
             const now = moment();
             const currentDate = date.clone().set({
@@ -117,10 +144,12 @@ export async function tryToCreateYearlyNote(
             }
             return currentDate.format(format);
           }
-        );
+        )
+        .replace(/{{\s*yesterday\s*}}/gi, date.clone().subtract(1, "day").format(format))
+        .replace(/{{\s*tomorrow\s*}}/gi, date.clone().add(1, "d").format(format));
 
       // Create new file with processed template
-      const note = await vault.create(path, fileContent || "# " + filename + "\n");
+      const note = await vault.create(normalizedPath, fileContent || "");
       
       // Save fold info if available
       if (IFoldInfo) {
@@ -137,7 +166,7 @@ export async function tryToCreateYearlyNote(
     } catch (error) {
       // If file already exists, try to open it instead
       if (error instanceof Error && error.message.includes("File already exists")) {
-        const existingFile = vault.getAbstractFileByPath(path);
+        const existingFile = vault.getAbstractFileByPath(normalizedPath);
         if (existingFile && existingFile instanceof TFile) {
           const leaf = inNewSplit
             ? workspace.splitActiveLeaf()

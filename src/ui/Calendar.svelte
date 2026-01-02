@@ -8,9 +8,20 @@
     configureGlobalMomentLocale,
   } from "obsidian-calendar-ui";
   import { onDestroy, afterUpdate } from "svelte";
+  import { getMonthlyNote } from "obsidian-daily-notes-interface";
 
   import type { ISettings } from "src/settings";
-  import { activeFile, dailyNotes, settings, weeklyNotes } from "./stores";
+  import { 
+    activeFile, 
+    dailyNotes, 
+    settings, 
+    weeklyNotes, 
+    monthlyNotes, 
+    quarterlyNotes, 
+    yearlyNotes,
+    getQuarterlyNote,
+    getYearlyNote 
+  } from "./stores";
   import { openOrCreateMonthlyNote } from "src/io/monthlyNotes";
   import { openOrCreateQuarterlyNote } from "src/io/quarterlyNotes";
   import { openOrCreateYearlyNote } from "src/io/yearlyNotes";
@@ -48,6 +59,9 @@
     configureGlobalMomentLocale(settings.localeOverride, settings.weekStart);
     dailyNotes.reindex();
     weeklyNotes.reindex();
+    monthlyNotes.reindex();
+    quarterlyNotes.reindex();
+    yearlyNotes.reindex();
     return window.moment();
   }
 
@@ -76,6 +90,27 @@
     const quarter = "Q" + displayedMonth.format("Q"); // "Q1", "Q2", etc.
     const year = displayedMonth.format("YYYY"); // "2025"
 
+    // Check if notes exist for the displayed month/quarter/year
+    const hasMonthlyNote = getMonthlyNote(displayedMonth, $monthlyNotes) !== null;
+    const hasQuarterlyNote = getQuarterlyNote(displayedMonth, $quarterlyNotes) !== null;
+    const hasYearlyNote = getYearlyNote(displayedMonth, $yearlyNotes) !== null;
+
+    // Helper to create a dot indicator
+    function createDotIndicator(exists: boolean): HTMLElement {
+      const dot = document.createElement("span");
+      dot.className = "extended-calendar-note-indicator";
+      dot.style.display = "inline-block";
+      dot.style.width = "6px";
+      dot.style.height = "6px";
+      dot.style.borderRadius = "50%";
+      dot.style.marginLeft = "4px";
+      dot.style.verticalAlign = "middle";
+      dot.style.backgroundColor = exists ? "var(--text-accent)" : "transparent";
+      dot.style.border = exists ? "none" : "1px solid var(--text-muted)";
+      dot.title = exists ? "Note exists" : "No note";
+      return dot;
+    }
+
     // Find text nodes for month, quarter, and year
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
     let node;
@@ -95,6 +130,12 @@
           if (!parent.classList.contains("extended-calendar-hover-effect")) {
             parent.classList.add("extended-calendar-hover-effect");
           }
+          // Update or add dot indicator
+          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
+          if (existingDot) {
+            existingDot.remove();
+          }
+          parent.appendChild(createDotIndicator(hasMonthlyNote));
         } else if (node.parentNode) {
           // Wrap it and add quarterly display after it
           const span = document.createElement("span");
@@ -112,6 +153,7 @@
           
           node.parentNode.replaceChild(span, node);
           span.appendChild(node);
+          span.appendChild(createDotIndicator(hasMonthlyNote));
           
           // Insert quarterly span after month
           const quarterSpan = document.createElement("span");
@@ -128,6 +170,7 @@
             openOrCreateQuarterlyNote(displayedMonth, false, $settings);
             return false;
           };
+          quarterSpan.appendChild(createDotIndicator(hasQuarterlyNote));
           
           span.parentNode.insertBefore(quarterSpan, span.nextSibling);
         }
@@ -147,6 +190,12 @@
           if (!parent.classList.contains("extended-calendar-hover-effect")) {
             parent.classList.add("extended-calendar-hover-effect");
           }
+          // Update or add dot indicator
+          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
+          if (existingDot) {
+            existingDot.remove();
+          }
+          parent.appendChild(createDotIndicator(hasYearlyNote));
         } else if (node.parentNode) {
           // Wrap it
           const span = document.createElement("span");
@@ -164,6 +213,20 @@
           
           node.parentNode.replaceChild(span, node);
           span.appendChild(node);
+          span.appendChild(createDotIndicator(hasYearlyNote));
+        }
+      }
+
+      // Update quarterly indicator if it already exists
+      if (node.nodeValue === quarter) {
+        const parent = node.parentElement;
+        if (parent && parent.classList.contains("extended-calendar-quarter-wrapper")) {
+          // Update or add dot indicator
+          let existingDot = parent.querySelector(".extended-calendar-note-indicator");
+          if (existingDot) {
+            existingDot.remove();
+          }
+          parent.appendChild(createDotIndicator(hasQuarterlyNote));
         }
       }
 
