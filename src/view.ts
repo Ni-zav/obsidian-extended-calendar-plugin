@@ -16,7 +16,7 @@ import type { ISettings } from "src/settings";
 
 import Calendar from "./ui/Calendar.svelte";
 import { showFileMenu } from "./ui/fileMenu";
-import { activeFile, dailyNotes, weeklyNotes, monthlyNotes, settings } from "./ui/stores";
+import { activeFile, dailyNotes, weeklyNotes, monthlyNotes, quarterlyNotes, yearlyNotes, settings } from "./ui/stores";
 import {
   customTagsSource,
   streakSource,
@@ -180,6 +180,8 @@ export default class CalendarView extends ItemView {
     dailyNotes.reindex();
     weeklyNotes.reindex();
     monthlyNotes.reindex();
+    quarterlyNotes.reindex();
+    yearlyNotes.reindex();
     this.updateActiveFile();
   }
 
@@ -196,10 +198,18 @@ export default class CalendarView extends ItemView {
       monthlyNotes.reindex();
       this.updateActiveFile();
     }
+    if (getDateFromFile(file, "quarter")) {
+      quarterlyNotes.reindex();
+      this.updateActiveFile();
+    }
+    if (getDateFromFile(file, "year")) {
+      yearlyNotes.reindex();
+      this.updateActiveFile();
+    }
   }
 
   private async onFileModified(file: TFile): Promise<void> {
-    const date = getDateFromFile(file, "day") || getDateFromFile(file, "week") || getDateFromFile(file, "month");
+    const date = getDateFromFile(file, "day") || getDateFromFile(file, "week") || getDateFromFile(file, "month") || getDateFromFile(file, "quarter") || getDateFromFile(file, "year");
     if (date && this.calendar) {
       this.calendar.tick();
     }
@@ -217,6 +227,14 @@ export default class CalendarView extends ItemView {
       }
       if (getDateFromFile(file, "month")) {
         monthlyNotes.reindex();
+        this.calendar.tick();
+      }
+      if (getDateFromFile(file, "quarter")) {
+        quarterlyNotes.reindex();
+        this.calendar.tick();
+      }
+      if (getDateFromFile(file, "year")) {
+        yearlyNotes.reindex();
         this.calendar.tick();
       }
     }
